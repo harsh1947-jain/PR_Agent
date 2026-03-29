@@ -99,49 +99,6 @@ PR_Agent/
 └── .gitignore
 ```
 
-## Setup
 
-### Prerequisites
-- Python 3
-- A GitHub App (with App ID + private key)
-- Claude CLI (for Step 7)
-
-### Environment Variables
-```bash
-export GITHUB_APP_ID=your_app_id
-export GITHUB_PRIVATE_KEY_PATH=private-key.pem
-export WEBHOOK_SECRET=your_secret
-```
-
-For testing without a GitHub App:
-```bash
-export GITHUB_TOKEN=ghp_your_personal_token
-```
-
-### Run
-```bash
-pip install -r requirements.txt
-python3 app.py
-```
-
-### Test
-```bash
-# Terminal 1: Start server
-python3 app.py
-
-# Terminal 2: Send fake webhooks
-bash test.sh
-```
-
-## Testing with a Real Repo
-
-```bash
-# Set your token
-export GITHUB_TOKEN=ghp_xxx
-
-# Test the agent directly
-python3 -c "
-from agent import run_agent
-run_agent('your-user/your-repo', 'your-branch', 123456)
 "
 ```
