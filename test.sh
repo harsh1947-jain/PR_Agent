@@ -59,4 +59,8 @@ curl -s -X POST "$SERVER/webhook" \
 echo ""
 
 echo "=== DONE ==="
-echo "Check the app.py terminal for the full output (Steps 4-6 logs)"
+echo "Check the app.py terminal for the full output (Steps 4-8 logs)"
+echo ""
+echo "Full stack (Groq + create/update PR) without webhook:"
+echo "  export GITHUB_TOKEN=ghp_xxx GROQ_API_KEY=gsk_xxx"
+echo "  python3 run_local.py owner/repo your-branch"
