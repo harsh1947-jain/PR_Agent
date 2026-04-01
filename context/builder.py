@@ -6,14 +6,14 @@ from config import README_MAX_CHARS
 from github_client import get_compare_json, get_readme_excerpt, get_repository
 
 
-def build_pr_context(repo, base, branch, token):
+def build_pr_context(repo, base, branch):
     """
     Best-effort context; failures for optional pieces are swallowed so the agent still runs.
     """
     blocks = []
 
     try:
-        meta = get_repository(repo, token)
+        meta = get_repository(repo)
         desc = meta.get("description") or "(none)"
         default = meta.get("default_branch") or ""
         blocks.append(
@@ -25,14 +25,14 @@ def build_pr_context(repo, base, branch, token):
         blocks.append(f"Repository: {repo}")
 
     try:
-        readme = get_readme_excerpt(repo, token, max_chars=README_MAX_CHARS)
+        readme = get_readme_excerpt(repo, max_chars=README_MAX_CHARS)
         if readme.strip():
             blocks.append("README (excerpt):\n" + readme.strip())
     except Exception:
         pass
 
     try:
-        compare = get_compare_json(repo, base, branch, token)
+        compare = get_compare_json(repo, base, branch)
         commits = compare.get("commits") or []
         commit_lines = []
         for c in commits[-15:]:

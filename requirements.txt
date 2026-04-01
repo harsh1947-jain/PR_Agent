@@ -1,3 +1,2 @@
-flask>=3.0
-PyJWT>=2.8
-cryptography>=42.0
+# No pip dependencies — uses only Python standard library.
+# External tools required: gh CLI, claude CLI.
