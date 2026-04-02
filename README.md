@@ -42,9 +42,6 @@ From inside any git repository:
 
 Or run the agent directly (if you've already pushed):
 
-```bash
-python3 run_local.py owner/repo feature-branch
-```
 
 ---
 
