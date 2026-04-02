@@ -1,104 +1,164 @@
-# PR_Agent
+# PR Agent
 
-An automated PR description generator powered by Claude AI. When a developer pushes code, this agent automatically creates or updates a Pull Request with an AI-generated description.
+An AI-powered tool that automatically generates Pull Request titles and descriptions when you push code. One command — push your code and get a well-written PR on GitHub.
+
+**Zero API keys. Zero configuration. Zero pip dependencies.**
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+| Tool | Install |
+|------|---------|
+| Python 3.10+ | [python.org](https://www.python.org/downloads/) |
+| GitHub CLI (`gh`) | [cli.github.com](https://cli.github.com/) |
+| Claude CLI | `npm install -g @anthropic-ai/claude-code` |
+
+### One-Time Setup
+
+```bash
+# Authenticate with GitHub (opens browser, click Authorize, done)
+gh auth login
+
+# Clone this repo
+git clone https://github.com/YOUR_USERNAME/PR_Agent.git
+```
+
+### Usage
+
+From inside any git repository:
+
+```bash
+# Push and auto-create/update a PR
+~/path/to/PR_Agent/push_and_pr.sh
+
+# With git push flags — all work
+~/path/to/PR_Agent/push_and_pr.sh origin feature-branch
+~/path/to/PR_Agent/push_and_pr.sh -u origin HEAD
+~/path/to/PR_Agent/push_and_pr.sh --force origin my-branch
+```
+
+Or run the agent directly (if you've already pushed):
+
+```bash
+python3 run_local.py owner/repo feature-branch
+```
+
+---
+
+## What It Does
+
+When you push to a feature branch, the agent:
+
+1. **Detects forks** — If your repo is a fork, the PR targets the original (upstream) repo automatically
+2. **Checks for existing PRs** — Creates a new PR or updates the existing one
+3. **Fetches the code diff** — Gets what changed between `main` and your branch
+4. **Gathers context** — Repo description, README excerpt, commit messages, changed files
+5. **Generates PR content** — Claude AI writes a detailed title and description
+6. **Creates/updates the PR** — Posts it to GitHub with formatted sections
+
+### Example Output
+
+The agent generates PRs with these sections:
+
+- **Summary** — Why this change exists
+- **What changed** — Specific files, functions, and reasons
+- **How it works** — Technical explanation of the approach
+- **Test plan** — Steps to verify the change
+
+---
 
 ## How It Works
 
 ```
-Developer: git push origin feature-branch
-                    |
-                    v
-        GitHub sends push webhook
-                    |
-                    v
-            app.py receives it
-                    |
-                    v
-              run_agent(...)
-                    |
-        +-----------+-----------+
-        |           |           |
-     STEP 4      STEP 5      STEP 6
-   Get Token   Check PR?    Get Diff
-        |           |           |
-        +-----------+-----------+
-                    |
-                    v
-          STEP 7: Claude AI generates
-          PR title + description
-                    |
-                    v
-          STEP 8: Create or Update PR
+push_and_pr.sh
+  │
+  ├── 1. git push (with all your flags)
+  │
+  ├── 2. Auto-detect repo + branch from git remote
+  │
+  └── 3. Run PR Agent
+        │
+        ├── Fork detection ──► gh api repos/owner/repo
+        │                      (auto-targets upstream if fork)
+        │
+        ├── Check existing PR ──► gh pr list
+        │
+        ├── Get code diff ──► gh api compare/main...branch
+        │
+        ├── Build context ──► repo metadata + README + commits + files
+        │
+        ├── Generate content ──► claude CLI (AI writes title + body)
+        │
+        └── Create/update PR ──► gh api repos/.../pulls
 ```
 
-## Flow (Step by Step)
-
-### Step 1 - User Installs GitHub App
-A user installs the GitHub App on their account. The app receives and stores the `installation_id`, which is used later to access the user's repos.
-
-**File:** `app.py` (installation webhook handler)
-
-### Step 2 - Developer Pushes Code
-```bash
-git push origin feature-login
-```
-Nothing happens in the app yet. GitHub detects the push internally.
-
-### Step 3 - GitHub Sends Push Webhook
-GitHub sends a POST request to `/webhook` with the push payload. The app extracts three things:
-- `repo` - e.g. `"user/repo"`
-- `branch` - e.g. `"feature-login"`
-- `installation_id` - e.g. `123456`
-
-Then calls `run_agent(repo, branch, installation_id)` in a background thread.
-
-**File:** `app.py` (push event handler)
-
-### Step 4 - Authenticate with GitHub
-The agent authenticates using the GitHub App's private key:
-1. Signs a JWT with the private key
-2. Exchanges JWT + installation_id for an installation access token
-3. Returns `token = "ghs_xxxxx"` (used for all API calls)
-
-In test mode, it uses a personal `GITHUB_TOKEN` from the environment instead.
-
-**File:** `github_auth.py`
-
-### Step 5 - Check if PR Exists
-Calls the GitHub API to check for open PRs on the branch:
-- **No PR found** → will create a new PR (Step 8A)
-- **PR exists** → will update it (Step 8B)
-
-**File:** `github_client.py` → `get_open_prs()`
-
-### Step 6 - Get Code Diff
-Fetches the diff between the base branch (`main`) and the pushed branch via the GitHub API. This diff is what gets sent to the LLM.
-
-**File:** `github_client.py` → `get_diff()`
-
-### Step 7 - Generate PR Content (TODO)
-Sends the diff to Claude AI, which generates:
-- A concise PR title
-- A markdown PR description with Summary, What Changed, Why, and Test Plan sections
-
-### Step 8 - Create or Update PR (TODO)
-- **Case A (no PR):** Creates a new PR with the AI-generated title and description
-- **Case B (PR exists):** Updates the existing PR's title and description
+---
 
 ## Project Structure
 
 ```
 PR_Agent/
-├── app.py              # Webhook server (Steps 1, 2, 3)
-├── agent.py            # Agent orchestrator (Steps 4, 5, 6)
-├── github_auth.py      # GitHub App JWT auth (Step 4)
-├── github_client.py    # GitHub API calls (Steps 5, 6, 8)
-├── config.py           # Environment-based configuration
-├── test.sh             # Test script to simulate webhooks
-├── requirements.txt    # Python dependencies
-└── .gitignore
+├── push_and_pr.sh         # Entry point — push + auto PR (run from any repo)
+├── run_local.py           # Python entry point (if already pushed)
+├── agent.py               # Orchestrator — runs the 6-step pipeline
+├── github_client.py       # GitHub API calls via gh CLI
+├── config.py              # BASE_BRANCH + size limits
+├── context/
+│   ├── __init__.py
+│   └── builder.py         # Assembles repo context for the LLM
+├── llm/
+│   ├── __init__.py
+│   └── claude_client.py   # PR generation via claude CLI
+└── requirements.txt       # No dependencies (stdlib only)
 ```
 
+### Module Responsibilities
 
-"
-```
+| Module | File | What it does |
+|--------|------|-------------|
+| **Entry** | `push_and_pr.sh` | Wraps `git push`, detects repo/branch, calls `run_local.py` |
+| **Runner** | `run_local.py` | Validates tools are installed, calls `agent.py` |
+| **Orchestrator** | `agent.py` | Runs the 6-step pipeline end-to-end |
+| **GitHub** | `github_client.py` | All GitHub interactions via `gh` CLI subprocess |
+| **Context** | `context/builder.py` | Gathers repo metadata, README, commits, file list |
+| **LLM** | `llm/claude_client.py` | Sends diff + context to Claude, parses JSON response |
+| **Config** | `config.py` | `BASE_BRANCH` (default: main), diff/README size caps |
+
+---
+
+## Fork Support
+
+The agent automatically detects forked repos:
+
+- **Your repo** (`ShettyGaurav/project`) → PR created on **your repo**
+- **Forked repo** (`ShettyGaurav/forked-project`) → PR created on the **original repo** (`originalowner/forked-project`)
+
+No configuration needed. The agent reads GitHub's API to determine if a repo is a fork and routes the PR accordingly.
+
+---
+
+## Configuration
+
+All configuration is optional via environment variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `BASE_BRANCH` | `main` | Target branch for PRs |
+| `DIFF_MAX_CHARS` | `120000` | Max diff size sent to LLM |
+| `README_MAX_CHARS` | `6000` | Max README excerpt size |
+
+---
+
+## Troubleshooting
+
+| Problem | Fix |
+|---------|-----|
+| `gh: not found` | Install: https://cli.github.com |
+| `claude: not found` | Install: `npm install -g @anthropic-ai/claude-code` |
+| `gh: Not Found (HTTP 404)` on diff | Branch not pushed to GitHub — run `git push` first |
+| `gh: Validation Failed (HTTP 422)` | PR may already exist, or branch has no diff from base |
+| `Empty diff — nothing to do` | Your branch is identical to `main` |
+| Claude CLI timeout | Large diffs take longer — try reducing `DIFF_MAX_CHARS` |
